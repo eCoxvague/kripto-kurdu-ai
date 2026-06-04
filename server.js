@@ -50,6 +50,11 @@ function sendJson(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+function sendMedia(res, status, headers, body) {
+  res.writeHead(status, headers);
+  res.end(body);
+}
+
 async function readJson(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -145,10 +150,65 @@ async function agnesRequest(req, path, options = {}) {
   return { status: upstream.status, body };
 }
 
+function safeFileName(value, fallback) {
+  const cleaned = String(value || "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 120);
+  return cleaned || fallback;
+}
+
+async function proxyMedia(res, url) {
+  const source = url.searchParams.get("url") || "";
+  let parsed;
+  try {
+    parsed = new URL(source);
+  } catch {
+    return sendJson(res, 400, { error: "Geçerli bir medya URL'i gönderilmedi." });
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return sendJson(res, 400, { error: "Sadece http/https medya URL'leri desteklenir." });
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(parsed, { method: "GET" });
+  } catch {
+    return sendJson(res, 502, { error: "Medya dosyası indirilemedi." });
+  }
+
+  if (!upstream.ok) {
+    return sendJson(res, upstream.status, { error: "Medya dosyası alınamadı." });
+  }
+
+  const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+  const arrayBuffer = await upstream.arrayBuffer();
+  const fileName = safeFileName(
+    url.searchParams.get("name") || parsed.pathname.split("/").filter(Boolean).pop(),
+    contentType.startsWith("video/") ? "kripto-kurdu-video.mp4" : "kripto-kurdu-gorsel.png"
+  );
+  const headers = {
+    "content-type": contentType,
+    "cache-control": "no-store, max-age=0",
+    "content-length": String(arrayBuffer.byteLength)
+  };
+
+  if (url.searchParams.get("download") === "1") {
+    headers["content-disposition"] = `attachment; filename="${fileName}"`;
+  }
+
+  return sendMedia(res, 200, headers, Buffer.from(arrayBuffer));
+}
+
 async function handleApi(req, res, url) {
   try {
     if (req.method === "GET" && url.pathname === "/api/status") {
       return sendJson(res, 200, { hasServerKey: Boolean(process.env.AGNES_API_KEY) });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/media") {
+      return proxyMedia(res, url);
     }
 
     if (req.method === "POST" && url.pathname === "/api/chat") {

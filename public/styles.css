@@ -1079,6 +1079,7 @@ label {
   color: #003000;
   font-size: 12px;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .video-status-title {

@@ -775,7 +775,13 @@ function fileNameFromUrl(url, fallback) {
   }
 }
 
-async function copyMedia(url, type, statusElement) {
+function proxiedMediaUrl(url, fileName, download = false) {
+  const params = new URLSearchParams({ url, name: fileName });
+  if (download) params.set("download", "1");
+  return `/api/media?${params.toString()}`;
+}
+
+async function copyMedia(url, type, statusElement, options = {}) {
   const setStatus = (text) => {
     statusElement.textContent = text;
     window.setTimeout(() => {
@@ -783,23 +789,33 @@ async function copyMedia(url, type, statusElement) {
     }, 2600);
   };
 
-  if (type === "image" && navigator.clipboard?.write && window.ClipboardItem) {
-    try {
-      const response = await fetch(url, { mode: "cors" });
-      const blob = await response.blob();
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
-      setStatus("Resim kopyalandı");
-      return;
-    } catch {
-      // Bazı uzak görseller CORS yüzünden doğrudan panoya kopyalanamaz; URL kopyalama yedek davranıştır.
-    }
+  if (!navigator.clipboard?.write || !window.ClipboardItem) {
+    setStatus("Tarayıcı medya kopyalamayı desteklemiyor");
+    return false;
   }
 
   try {
-    await navigator.clipboard.writeText(url);
-    setStatus(type === "video" ? "Video URL kopyalandı" : "Resim URL kopyalandı");
+    const fileName = fileNameFromUrl(url, type === "video" ? "kripto-kurdu-video.mp4" : "kripto-kurdu-gorsel.png");
+    const response = await fetch(proxiedMediaUrl(url, fileName));
+    if (!response.ok) throw new Error("Medya alınamadı");
+    const blob = await response.blob();
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type || (type === "video" ? "video/mp4" : "image/png")]: blob })]);
+    setStatus(options.successText || (type === "video" ? "Video kopyalandı" : "Resim kopyalandı"));
+    return true;
   } catch {
-    setStatus("Kopyalama izni yok");
+    setStatus(type === "video" ? "Tarayıcı video dosyasını panoya alamadı" : "Resim kopyalanamadı");
+    return false;
+  }
+}
+
+async function prepareXShare(url, type, prompt, statusElement) {
+  const copied = await copyMedia(url, type, statusElement, {
+    successText: type === "video" ? "Video hazır. X'te Ctrl+V yap." : "Resim hazır. X'te Ctrl+V yap."
+  });
+  const text = prompt ? `Kripto Kurdu AI ile üretildi: ${prompt}` : "Kripto Kurdu AI ile üretildi";
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  if (!copied) {
+    statusElement.textContent = "X medya ekini URL ile alamaz; indirip elle yükleyebilirsin.";
   }
 }
 
@@ -816,28 +832,24 @@ function createMediaActions({ url, type, prompt = "", index = 0 }) {
   open.textContent = "Aç";
 
   const download = document.createElement("a");
-  download.href = url;
+  download.href = proxiedMediaUrl(url, fileName, true);
   download.download = fileName;
-  download.target = "_blank";
-  download.rel = "noopener noreferrer";
   download.textContent = type === "video" ? "Videoyu indir" : "Resmi indir";
 
   const copy = document.createElement("button");
   copy.type = "button";
   copy.textContent = type === "video" ? "Video kopyala" : "Resmi kopyala";
 
-  const share = document.createElement("a");
-  const shareText = prompt ? `Kripto Kurdu AI ile üretildi: ${prompt}` : "Kripto Kurdu AI ile üretildi";
-  share.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(url)}`;
-  share.target = "_blank";
-  share.rel = "noopener noreferrer";
-  share.textContent = "X'te paylaş";
+  const share = document.createElement("button");
+  share.type = "button";
+  share.textContent = "X için hazırla";
 
   const status = document.createElement("span");
   status.className = "media-action-status";
   status.setAttribute("aria-live", "polite");
 
   copy.addEventListener("click", () => copyMedia(url, type, status));
+  share.addEventListener("click", () => prepareXShare(url, type, prompt, status));
 
   actions.append(open, download, copy, share, status);
   return actions;
