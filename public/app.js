@@ -942,11 +942,38 @@ function findFirstByKeys(data, keys, validator = (value) => value !== undefined 
   return null;
 }
 
+function normalizeProgress(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "string") {
+    const number = Number(value.replace("%", "").replace(",", ".").trim());
+    return Number.isFinite(number) ? number : value;
+  }
+  return value;
+}
+
+function videoStatusLabel(status, progress) {
+  const normalized = String(status || "").toLowerCase();
+  if (["queued", "pending", "waiting"].includes(normalized)) return "Sırada bekliyor";
+  if (["processing", "running", "generating", "in_progress"].includes(normalized)) return "Üretiliyor";
+  if (["completed", "succeeded", "success"].includes(normalized)) return "Tamamlandı";
+  if (["failed", "error", "cancelled", "canceled"].includes(normalized)) return "Hata/iptal";
+  if (progress === 0) return "Hazırlanıyor";
+  return "";
+}
+
 function extractVideoInfo(data) {
+  const progress = normalizeProgress(
+    findFirstByKeys(
+      data,
+      ["progress", "percent", "percentage", "progress_percent", "completed_percent"],
+      (value) => value !== undefined && value !== null && value !== ""
+    )
+  );
+
   return {
     taskId: findFirstByKeys(data, ["task_id", "id"], (value) => typeof value === "string" && value.length > 0),
-    status: findFirstByKeys(data, ["status"], (value) => typeof value === "string" && value.length > 0),
-    progress: findFirstByKeys(data, ["progress"], (value) => value !== undefined && value !== null),
+    status: findFirstByKeys(data, ["status", "state"], (value) => typeof value === "string" && value.length > 0),
+    progress,
     seconds: findFirstByKeys(data, ["seconds"], (value) => value !== undefined && value !== null),
     size: findFirstByKeys(data, ["size"], (value) => typeof value === "string" && value.length > 0),
     error: findFirstByKeys(data, ["error"], (value) => value),
@@ -979,12 +1006,26 @@ function renderVideoResult(data, options = {}) {
   meta.className = "video-status-meta";
   const metaParts = [];
   if (info.taskId) metaParts.push(`Task ID: ${info.taskId}`);
+  const statusLabel = videoStatusLabel(info.status, info.progress);
+  if (statusLabel) metaParts.push(`Aşama: ${statusLabel}`);
   if (info.progress !== null) metaParts.push(`İlerleme: ${info.progress}%`);
   if (info.seconds !== null) metaParts.push(`Süre: ${info.seconds}`);
   if (info.size) metaParts.push(`Boyut: ${info.size}`);
-  if (options.polling) metaParts.push("Otomatik takip aktif");
+  if (options.polling) {
+    metaParts.push(`Kontrol: ${options.pollIndex || 1}/${options.pollAttempts || "?"}`);
+    metaParts.push(`Son kontrol: ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
+  }
   meta.textContent = metaParts.join(" | ") || "Cevap alındı.";
   status.append(title, meta);
+
+  if (typeof info.progress === "number") {
+    const progressOuter = document.createElement("div");
+    progressOuter.className = "video-progress";
+    const progressInner = document.createElement("div");
+    progressInner.style.width = `${Math.max(0, Math.min(100, info.progress))}%`;
+    progressOuter.append(progressInner);
+    status.append(progressOuter);
+  }
 
   if (info.error) {
     const error = document.createElement("div");
@@ -1033,7 +1074,7 @@ async function pollVideoTask(taskId, attempts = 45, prompt = "") {
   for (let index = 0; index < attempts; index += 1) {
     await new Promise((resolve) => setTimeout(resolve, index === 0 ? 2500 : 7000));
     const data = await request(`/api/videos/${encodeURIComponent(taskId)}`, { method: "GET" });
-    lastInfo = renderVideoResult(data, { polling: true, prompt });
+    lastInfo = renderVideoResult(data, { polling: true, pollIndex: index + 1, pollAttempts: attempts, prompt });
 
     const status = String(lastInfo.status || "").toLowerCase();
     if (lastInfo.videoUrl || ["completed", "succeeded", "success", "failed", "error", "cancelled"].includes(status)) {
