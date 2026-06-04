@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kripto Kurdu AI</title>
+    <link rel="icon" type="image/png" href="/kk.png?v=20260604-24" />
+    <link rel="apple-touch-icon" href="/kk.png?v=20260604-24" />
+    <link rel="stylesheet" href="/styles.css?v=20260604-24" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <img class="brand-logo" src="/kk.png?v=20260604-24" alt="Kripto Kurdu AI logosu" />
+          <div class="brand-copy">
+            <p class="eyebrow">Kripto Kurdu</p>
+            <h1>Kripto Kurdu AI <span class="version-tag">v24</span></h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="apiSettingsBtn" class="api-settings-button" type="button" title="API ayarlarını aç">
+            <span class="api-settings-label">API Ayarları</span>
+            <span id="keyState" class="api-settings-state">API key yok</span>
+          </button>
+          <button id="clearBtn" class="icon-button" title="Ekranı temizle" aria-label="Ekranı temizle">X</button>
+        </div>
+      </header>
+
+      <div class="workstation-notice" role="status" aria-label="Kullanım bilgisi">
+        <div class="notice-track">
+          <span>Kripto Kurdu AI hazır. Chat alanına metin yazabilir, Ctrl+V ile görsel ekleyebilirsin.</span>
+          <span>Görsel ve Video sekmelerinde promptu detay alanlarıyla netleştirebilirsin.</span>
+          <span>API ayarlarından kendi keyini kaydedip tarayıcıda kullanabilirsin.</span>
+        </div>
+      </div>
+
+      <main class="workspace">
+        <aside class="settings-panel">
+          <div class="field" data-setting="chat image video">
+            <label for="model">Model</label>
+            <select id="model">
+              <optgroup label="Sohbet">
+                <option value="agnes-2.0-flash">agnes-2.0-flash - önerilen</option>
+                <option value="agnes-1.5-flash">agnes-1.5-flash - eski/hızlı</option>
+              </optgroup>
+              <optgroup label="Görsel">
+                <option value="agnes-image-2.1-flash">agnes-image-2.1-flash - önerilen</option>
+                <option value="agnes-image-2.0-flash">agnes-image-2.0-flash</option>
+              </optgroup>
+              <optgroup label="Video">
+                <option value="agnes-video-v2.0">agnes-video-v2.0 - önerilen</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="field" data-setting="image">
+            <label for="size">Görsel boyutu</label>
+            <select id="size">
+              <option value="1024x1024">Kare 1:1</option>
+              <option value="1280x720">Yatay 16:9</option>
+              <option value="720x1280">Dikey 9:16</option>
+              <option value="1280x960">Yatay 4:3</option>
+              <option value="960x1280">Dikey 3:4</option>
+              <option value="1280x512">Geniş 5:2</option>
+              <option value="1280x720">YouTube kapak 16:9</option>
+              <option value="1200x675">X/Twitter kapak</option>
+              <option value="1080x1080">Instagram post</option>
+              <option value="1080x1920">Story/Reels/Shorts</option>
+              <option value="1024x768">Standart 4:3</option>
+              <option value="768x1024">Dikey standart</option>
+            </select>
+          </div>
+
+          <div class="field" data-setting="video">
+            <label for="videoPreset">Video formatı</label>
+            <select id="videoPreset">
+              <option value="1152x768:121:24">Yatay standart</option>
+              <option value="1280x720:121:24">YouTube 16:9</option>
+              <option value="720x1280:121:24">Shorts/Reels 9:16</option>
+              <option value="1024x1024:121:24">Kare 1:1</option>
+              <option value="1280x512:121:24">Geniş 5:2</option>
+              <option value="768x1024:121:24">Dikey 3:4</option>
+              <option value="1152x768:201:24">Yatay uzun</option>
+            </select>
+          </div>
+
+          <details class="advanced-settings" data-setting="chat image video">
+            <summary>Gelişmiş ayarlar</summary>
+
+            <div class="field two-col" data-setting="chat">
+              <div>
+                <label for="temperature">Yaratıcılık</label>
+                <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.7" />
+              </div>
+              <div>
+                <label for="maxTokens">Cevap limiti</label>
+                <input id="maxTokens" type="number" min="1" step="1" value="1024" />
+              </div>
+            </div>
+
+            <div class="field two-col" data-setting="chat">
+              <div>
+                <label for="topP">Çeşitlilik</label>
+                <input id="topP" type="number" min="0" max="1" step="0.05" value="1" />
+              </div>
+              <div>
+                <label for="chatSeed">Sabit sonuç</label>
+                <input id="chatSeed" type="number" step="1" placeholder="Boş" />
+              </div>
+            </div>
+
+            <div class="field two-col" data-setting="chat">
+              <div>
+                <label for="frequencyPenalty">Tekrar azalt</label>
+                <input id="frequencyPenalty" type="number" min="-2" max="2" step="0.1" placeholder="Boş" />
+              </div>
+              <div>
+                <label for="presencePenalty">Yeni konu</label>
+                <input id="presencePenalty" type="number" min="-2" max="2" step="0.1" placeholder="Boş" />
+              </div>
+            </div>
+
+            <div class="field two-col" data-setting="chat">
+              <div>
+                <label for="repetitionPenalty">Tekrar kontrolü</label>
+                <input id="repetitionPenalty" type="number" min="0" max="2" step="0.05" placeholder="Boş" />
+              </div>
+              <div>
+                <label for="chatStop">Durdurma</label>
+                <input id="chatStop" placeholder="İsteğe bağlı" />
+              </div>
+            </div>
+
+            <div class="settings-help" data-setting="chat">
+              <p>Chat gelişmiş ayarları:</p>
+              <ul>
+                <li><strong>Yaratıcılık:</strong> Düşük değer daha net ve tutarlı, yüksek değer daha serbest cevap üretir.</li>
+                <li><strong>Cevap limiti:</strong> Cevabın en fazla ne kadar uzun olacağını belirler.</li>
+                <li><strong>Çeşitlilik:</strong> Cevabın kelime seçimini ne kadar geniş tutacağını ayarlar. Genelde 1 iyi çalışır.</li>
+                <li><strong>Sabit sonuç:</strong> Aynı soruda benzer sonuç almak için sayı girilir. Boş bırakmak normal kullanım için daha iyidir.</li>
+                <li><strong>Tekrar azalt / Tekrar kontrolü:</strong> Modelin aynı ifadeleri tekrar etmesini azaltır.</li>
+                <li><strong>Yeni konu:</strong> Modeli farklı noktalara değinmeye teşvik eder.</li>
+                <li><strong>Durdurma:</strong> Cevap bu kelime veya işarete gelince kesilir. Genelde boş bırakılır.</li>
+              </ul>
+            </div>
+
+            <div class="field" data-setting="image">
+              <label for="imageSeed">Sabit görsel kodu</label>
+              <input id="imageSeed" type="number" step="1" placeholder="İsteğe bağlı" />
+            </div>
+
+            <div class="settings-help" data-setting="image">
+              <p>Görsel gelişmiş ayarları:</p>
+              <ul>
+                <li><strong>Sabit görsel kodu:</strong> Aynı promptla benzer görsel üretmek için kullanılır.</li>
+                <li><strong>Boş bırakılırsa:</strong> Her üretimde model farklı bir sonuç deneyebilir.</li>
+                <li><strong>Girdi görsel URL'leri:</strong> Görselden görsele üretim veya birden fazla görseli birleştirme için kullanılır.</li>
+                <li><strong>Kaçınılacaklar:</strong> Görselde istemediğin şeyleri yazmak için kullanılır. Boş bırakılabilir.</li>
+              </ul>
+            </div>
+
+            <div class="field two-col" data-setting="video">
+              <div>
+                <label for="width">Video genişlik</label>
+                <input id="width" type="number" value="1152" min="256" step="8" />
+              </div>
+              <div>
+                <label for="height">Video yükseklik</label>
+                <input id="height" type="number" value="768" min="256" step="8" />
+              </div>
+            </div>
+
+            <div class="field two-col" data-setting="video">
+              <div>
+                <label for="frames">Süre karesi</label>
+                <input id="frames" type="number" value="121" min="9" step="8" />
+              </div>
+              <div>
+                <label for="fps">Akıcılık</label>
+                <input id="fps" type="number" value="24" min="1" max="60" step="1" />
+              </div>
+            </div>
+
+            <div class="field two-col" data-setting="video">
+              <div>
+                <label for="videoSeed">Sabit video kodu</label>
+                <input id="videoSeed" type="number" step="1" placeholder="Boş" />
+              </div>
+              <div>
+                <label for="videoSteps">Kalite adımı</label>
+                <input id="videoSteps" type="number" min="1" step="1" placeholder="Boş" />
+              </div>
+            </div>
+
+            <div class="settings-help" data-setting="video">
+              <p>Video gelişmiş ayarları:</p>
+              <ul>
+                <li><strong>Video genişlik / yükseklik:</strong> Videonun çözünürlüğünü belirler. Normal kullanıcı için Video formatı seçimi yeterlidir.</li>
+                <li><strong>Süre karesi:</strong> Video uzunluğunu etkiler. Daha yüksek değer daha uzun üretim süresi demektir.</li>
+                <li><strong>Akıcılık:</strong> Saniyedeki kare sayısıdır. 24 çoğu video için uygundur.</li>
+                <li><strong>Sabit video kodu:</strong> Aynı promptla benzer video üretmek için kullanılır.</li>
+                <li><strong>Kalite adımı:</strong> Modelin üretim için kaç adım çalışacağını belirler. Boş bırakmak genelde en güvenlidir.</li>
+                <li><strong>Keyframe modu:</strong> Birden fazla görsel URL'si verdiğinde görseller arasında geçiş üretmek için kullanılır.</li>
+                <li><strong>Kaçınılacaklar:</strong> Videoda istemediğin hareket, görünüm veya hataları yazmak için kullanılır.</li>
+              </ul>
+            </div>
+          </details>
+
+          <section class="history-panel" data-setting="chat">
+            <div class="history-title">
+              <span>Geçmiş</span>
+              <button id="newConversation" type="button">Yeni</button>
+            </div>
+            <div id="conversationList" class="conversation-list" aria-label="Geçmiş konuşmalar"></div>
+          </section>
+        </aside>
+
+        <section class="main-panel">
+          <nav class="tabs" aria-label="Araçlar">
+            <button class="tab active" data-mode="chat">Chat</button>
+            <button class="tab" data-mode="image">Görsel</button>
+            <button class="tab" data-mode="video">Video</button>
+          </nav>
+
+          <section id="chatView" class="view active">
+            <div id="messages" class="messages" aria-live="polite"></div>
+            <form id="chatForm" class="composer">
+              <div class="composer-input">
+                <div id="chatImageTray" class="chat-image-tray" aria-live="polite"></div>
+                <textarea id="chatInput" rows="4" placeholder="Mesaj yaz veya resmi buraya Ctrl+V ile yapıştır..."></textarea>
+              </div>
+              <button id="sendChat" type="submit">Gönder</button>
+            </form>
+          </section>
+
+          <section id="imageView" class="view">
+            <div class="generator-grid">
+              <div class="input-stack prompt-panel">
+                <label for="imagePrompt">Ana prompt</label>
+                <textarea id="imagePrompt" class="main-prompt" rows="8" placeholder="Örn: Şehirde yürüyen gerçekçi bir kişi, doğal ışık, tam vücut fotoğrafı"></textarea>
+
+                <details class="prompt-details">
+                  <summary>Prompt detaylarını aç</summary>
+                  <div class="prompt-fields">
+                  <div class="field">
+                    <label for="imageSubject">Konu</label>
+                    <input id="imageSubject" placeholder="Kişi, ürün, karakter, nesne..." />
+                  </div>
+                  <div class="field">
+                    <label for="imageEnvironment">Ortam / mekan</label>
+                    <input id="imageEnvironment" placeholder="Sokak, stüdyo, ofis, sahil, iç mekan..." />
+                  </div>
+                  <div class="field">
+                    <label for="imageLighting">Işık</label>
+                    <input id="imageLighting" placeholder="Doğal gün ışığı, yumuşak stüdyo ışığı..." />
+                  </div>
+                  <div class="field">
+                    <label for="imageCamera">Kamera / açı</label>
+                    <input id="imageCamera" placeholder="Tam vücut, portre, yakın plan, göz hizası..." />
+                  </div>
+                  </div>
+
+                  <label for="imageAppearance">Üst baş / saç / el / detay</label>
+                  <textarea id="imageAppearance" rows="3" placeholder="Kıyafet, saç, yüz ifadesi, el duruşu, aksesuar, materyal detayları..."></textarea>
+
+                  <label for="imageNegative">Kaçınılacaklar</label>
+                  <textarea id="imageNegative" rows="2" placeholder="İstemediğin detay varsa yaz. Boş bırakabilirsin."></textarea>
+                </details>
+
+                <div class="inline-controls">
+                  <label class="check-row">
+                    <input id="enhanceImagePrompt" type="checkbox" checked />
+                    <span>Promptu netleştir</span>
+                  </label>
+                  <select id="imageStyle" aria-label="Görsel stili">
+                    <option value="realistic">Gerçekçi</option>
+                    <option value="studio">Stüdyo</option>
+                    <option value="cinematic">Sinematik</option>
+                    <option value="editorial">Editoryal</option>
+                    <option value="product">Ürün</option>
+                  </select>
+                </div>
+
+                <div class="prompt-preview">
+                  <div class="prompt-preview-label">Gönderilecek prompt</div>
+                  <div id="imagePromptPreview"></div>
+                </div>
+
+                <label for="imageUrls">Girdi görsel URL'leri</label>
+                <textarea id="imageUrls" rows="3" placeholder="İsteğe bağlı, her satıra bir URL"></textarea>
+                <button id="generateImage">Görsel Üret</button>
+              </div>
+              <div id="imageOutput" class="output-stage"></div>
+            </div>
+          </section>
+
+          <section id="videoView" class="view">
+            <div class="generator-grid">
+              <div class="input-stack prompt-panel">
+                <label for="videoPrompt">Ana video prompt</label>
+                <textarea id="videoPrompt" class="main-prompt" rows="8" placeholder="Örn: Şehirde doğal şekilde yürüyen kişi, sabit kamera, gerçekçi hareket"></textarea>
+
+                <details class="prompt-details">
+                  <summary>Video detaylarını aç</summary>
+                  <div class="prompt-fields">
+                  <div class="field">
+                    <label for="videoSubject">Konu</label>
+                    <input id="videoSubject" placeholder="Kişi, ürün, sahne, karakter..." />
+                  </div>
+                  <div class="field">
+                    <label for="videoEnvironment">Ortam / mekan</label>
+                    <input id="videoEnvironment" placeholder="Sokak, oda, stüdyo, mağaza, doğa..." />
+                  </div>
+                  <div class="field">
+                    <label for="videoLighting">Işık</label>
+                    <input id="videoLighting" placeholder="Doğal ışık, akşam ışığı, stüdyo ışığı..." />
+                  </div>
+                  <div class="field">
+                    <label for="videoCamera">Kamera / açı</label>
+                    <input id="videoCamera" placeholder="Göz hizası, yavaş takip, tripod, yakın plan..." />
+                  </div>
+                  </div>
+
+                  <label for="videoMotion">Hareket</label>
+                  <textarea id="videoMotion" rows="2" placeholder="Yürüme, dönme, ürünü gösterme, kamera yaklaşması, hafif pan..."></textarea>
+
+                  <label for="videoAppearance">Üst baş / saç / el / detay</label>
+                  <textarea id="videoAppearance" rows="3" placeholder="Kıyafet, saç, el hareketi, yüz ifadesi, aksesuar, sahne detayları..."></textarea>
+
+                  <label for="videoNegative">Kaçınılacaklar</label>
+                  <textarea id="videoNegative" rows="2" placeholder="İstemediğin detay varsa yaz. Boş bırakabilirsin."></textarea>
+                </details>
+
+                <div class="inline-controls">
+                  <label class="check-row">
+                    <input id="enhanceVideoPrompt" type="checkbox" checked />
+                    <span>Video promptunu netleştir</span>
+                  </label>
+                  <select id="videoStyle" aria-label="Video stili">
+                    <option value="realistic">Gerçekçi</option>
+                    <option value="street">Sokak</option>
+                    <option value="cinematic">Sinematik</option>
+                    <option value="product">Ürün</option>
+                    <option value="runway">Podyum</option>
+                  </select>
+                </div>
+
+                <div class="prompt-preview">
+                  <div class="prompt-preview-label">Gönderilecek video prompt</div>
+                  <div id="videoPromptPreview"></div>
+                </div>
+
+                <label for="videoImages">Görsel / keyframe URL'leri</label>
+                <textarea id="videoImages" rows="4" placeholder="İsteğe bağlı, her satıra bir URL"></textarea>
+                <label class="check-row">
+                  <input id="keyframes" type="checkbox" />
+                  <span>Keyframe modu</span>
+                </label>
+                <label class="check-row">
+                  <input id="autoPollVideo" type="checkbox" checked />
+                  <span>Task sonucunu otomatik takip et</span>
+                </label>
+                <div class="video-hint" id="videoHint">Süre: 121 / 24 = 5.04 sn</div>
+                <button id="generateVideo">Video Task Aç</button>
+              </div>
+              <div class="output-stage">
+                <div id="videoOutput"></div>
+                <div class="poll-row">
+                  <input id="taskId" placeholder="Task ID" />
+                  <button id="pollVideo">Sonucu Çek</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="apiModal" class="modal-backdrop" hidden>
+      <section class="modal-window" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+        <header class="modal-titlebar">
+          <h2 id="apiModalTitle">API Ayarları</h2>
+          <button id="apiModalClose" class="icon-button" type="button" aria-label="Kapat">X</button>
+        </header>
+
+        <div class="modal-body">
+          <div class="field">
+            <label for="apiKey">Agnes API Key</label>
+            <input id="apiKey" type="password" autocomplete="off" placeholder="API key buraya" />
+          </div>
+
+          <div class="api-actions">
+            <button id="saveApiKey" type="button">Kaydet</button>
+            <button id="clearApiKey" type="button">Sil</button>
+          </div>
+
+          <div class="api-help">
+            <p>API key tarayıcında yerel olarak saklanır. Kayıtlıysa üstte <strong>•••• kayıtlı</strong> görünür.</p>
+            <p>Key almak için:</p>
+            <ol>
+              <li><a href="https://platform.agnes-ai.com/" target="_blank" rel="noopener noreferrer">Agnes platformuna</a> giriş yap.</li>
+              <li>Hesap veya API ayarları bölümünden yeni API key oluştur.</li>
+              <li>Key'i buraya yapıştırıp <strong>Kaydet</strong> butonuna bas.</li>
+            </ol>
+            <p class="api-note">
+              Doküman: <a href="https://agnes-ai.com/doc" target="_blank" rel="noopener noreferrer">agnes-ai.com/doc</a>.
+              API istekleri Bearer token ile doğrulanır.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="/app.js?v=20260604-24" type="module"></script>
+  </body>
+</html>
