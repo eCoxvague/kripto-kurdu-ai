@@ -881,18 +881,21 @@ function createMediaActions({ url, type, index = 0 }) {
   download.type = "button";
   download.textContent = type === "video" ? "Videoyu indir" : "Resmi indir";
 
-  const copy = document.createElement("button");
-  copy.type = "button";
-  copy.textContent = type === "video" ? "Video kopyala" : "Resmi kopyala";
-
   const status = document.createElement("span");
   status.className = "media-action-status";
   status.setAttribute("aria-live", "polite");
 
   download.addEventListener("click", () => downloadMedia(url, type, fileName, status));
-  copy.addEventListener("click", () => copyMedia(url, type, fileName, status));
 
-  actions.append(open, download, copy, status);
+  actions.append(open, download);
+  if (type === "image") {
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "Resmi kopyala";
+    copy.addEventListener("click", () => copyMedia(url, type, fileName, status));
+    actions.append(copy);
+  }
+  actions.append(status);
   return actions;
 }
 
