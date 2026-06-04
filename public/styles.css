@@ -821,6 +821,32 @@ label {
   font-family: inherit;
 }
 
+.code-block {
+  margin: 10px 0 0;
+  border: 1px solid #74b97b;
+  background: #000000;
+}
+
+.code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 6px 5px 9px;
+  color: #ffffff;
+  background: #07140d;
+  border-bottom: 1px solid #174f22;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.code-toolbar button {
+  min-height: 24px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
 .message pre {
   margin: 10px 0 0;
   padding: 10px;
@@ -828,6 +854,11 @@ label {
   color: #b8ffbf;
   background: #000000;
   border: 1px solid #74b97b;
+}
+
+.code-block pre {
+  margin: 0;
+  border: 0;
 }
 
 .message pre code {

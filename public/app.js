@@ -474,6 +474,44 @@ function appendList(container, items, ordered) {
   items.length = 0;
 }
 
+function appendCodeBlock(container, codeText) {
+  const wrap = document.createElement("div");
+  wrap.className = "code-block";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "code-toolbar";
+
+  const label = document.createElement("span");
+  label.textContent = "Kod";
+
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.textContent = "Kopyala";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(codeText);
+      copy.textContent = "Kopyalandı";
+      window.setTimeout(() => {
+        copy.textContent = "Kopyala";
+      }, 1600);
+    } catch {
+      copy.textContent = "Kopyalanamadı";
+      window.setTimeout(() => {
+        copy.textContent = "Kopyala";
+      }, 1600);
+    }
+  });
+
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  code.textContent = codeText;
+  pre.append(code);
+
+  toolbar.append(label, copy);
+  wrap.append(toolbar, pre);
+  container.append(wrap);
+}
+
 function renderMarkdown(container, content) {
   const lines = formatValue(content).replace(/\r\n/g, "\n").split("\n");
   const paragraph = [];
@@ -491,11 +529,7 @@ function renderMarkdown(container, content) {
     const fence = line.match(/^```(\w+)?\s*$/);
     if (fence) {
       if (codeBlock) {
-        const pre = document.createElement("pre");
-        const code = document.createElement("code");
-        code.textContent = codeBlock.lines.join("\n");
-        pre.append(code);
-        container.append(pre);
+        appendCodeBlock(container, codeBlock.lines.join("\n"));
         codeBlock = null;
       } else {
         flushAll();
@@ -553,11 +587,7 @@ function renderMarkdown(container, content) {
 
   flushAll();
   if (codeBlock) {
-    const pre = document.createElement("pre");
-    const code = document.createElement("code");
-    code.textContent = codeBlock.lines.join("\n");
-    pre.append(code);
-    container.append(pre);
+    appendCodeBlock(container, codeBlock.lines.join("\n"));
   }
 }
 
