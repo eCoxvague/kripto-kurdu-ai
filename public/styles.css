@@ -484,15 +484,47 @@ h1 {
   width: 100%;
   min-height: 42px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
   gap: 3px;
-  padding: 7px 8px;
+  padding: 0;
   text-align: left;
   font-weight: 700;
+  background: var(--win-face);
+  box-shadow:
+    inset -1px -1px 0 var(--win-shadow),
+    inset 1px 1px 0 var(--win-highlight),
+    inset -2px -2px 0 var(--win-face-dark),
+    inset 2px 2px 0 var(--win-face-light);
 }
 
 .conversation-item.active {
   color: #ffffff;
   background: #000080;
+}
+
+.conversation-open {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.conversation-delete {
+  width: 24px;
+  min-width: 0;
+  height: 24px;
+  min-height: 24px;
+  align-self: center;
+  justify-self: center;
+  padding: 0;
+  color: #ffffff;
+  background: #800000;
+  font-size: 12px;
 }
 
 .conversation-name,

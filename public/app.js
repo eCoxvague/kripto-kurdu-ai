@@ -228,6 +228,22 @@ function openConversation(id) {
   setMode("chat");
 }
 
+function deleteConversation(id) {
+  const wasActive = id === state.activeConversationId;
+  state.conversations = state.conversations.filter((conversation) => conversation.id !== id);
+  saveConversations();
+
+  if (wasActive) {
+    state.activeConversationId = "";
+    state.messages = [];
+    state.pendingChatImages = [];
+    renderChatImageTray();
+    renderMessages();
+  }
+
+  renderConversationList();
+}
+
 function renderConversationList() {
   if (!els.conversationList) return;
   els.conversationList.innerHTML = "";
@@ -241,11 +257,14 @@ function renderConversationList() {
   }
 
   for (const conversation of state.conversations) {
-    const item = document.createElement("button");
-    item.type = "button";
+    const item = document.createElement("div");
     item.className = "conversation-item";
     item.classList.toggle("active", conversation.id === state.activeConversationId);
-    item.title = conversation.title;
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "conversation-open";
+    open.title = conversation.title;
 
     const title = document.createElement("span");
     title.className = "conversation-name";
@@ -260,8 +279,18 @@ function renderConversationList() {
       minute: "2-digit"
     });
 
-    item.append(title, meta);
-    item.addEventListener("click", () => openConversation(conversation.id));
+    open.append(title, meta);
+    open.addEventListener("click", () => openConversation(conversation.id));
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "conversation-delete";
+    remove.title = "Geçmişten sil";
+    remove.setAttribute("aria-label", "Geçmişten sil");
+    remove.textContent = "X";
+    remove.addEventListener("click", () => deleteConversation(conversation.id));
+
+    item.append(open, remove);
     els.conversationList.append(item);
   }
 }
