@@ -4,6 +4,7 @@ const state = {
   conversations: [],
   activeConversationId: "",
   currentVideoPrompt: "",
+  videoPollAbort: null,
   pendingChatImages: [],
   hasServerKey: false
 };
@@ -971,6 +972,7 @@ function extractVideoInfo(data) {
   );
 
   return {
+    raw: data,
     taskId: findFirstByKeys(data, ["task_id", "id"], (value) => typeof value === "string" && value.length > 0),
     status: findFirstByKeys(data, ["status", "state"], (value) => typeof value === "string" && value.length > 0),
     progress,
@@ -1012,9 +1014,10 @@ function renderVideoResult(data, options = {}) {
   if (info.seconds !== null) metaParts.push(`Süre: ${info.seconds}`);
   if (info.size) metaParts.push(`Boyut: ${info.size}`);
   if (options.polling) {
-    metaParts.push(`Kontrol: ${options.pollIndex || 1}/${options.pollAttempts || "?"}`);
+    metaParts.push(`Kontrol: ${options.pollIndex || 1}`);
     metaParts.push(`Son kontrol: ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
   }
+  if (options.pollStopped) metaParts.push("Takip durduruldu; Sonucu Çek ile devam edebilirsin");
   meta.textContent = metaParts.join(" | ") || "Cevap alındı.";
   status.append(title, meta);
 
@@ -1069,18 +1072,27 @@ function applyVideoPreset() {
   updateVideoHint();
 }
 
-async function pollVideoTask(taskId, attempts = 45, prompt = "") {
+async function pollVideoTask(taskId, prompt = "") {
   let lastInfo = null;
-  for (let index = 0; index < attempts; index += 1) {
+  const controller = new AbortController();
+  state.videoPollAbort = controller;
+
+  for (let index = 0; !controller.signal.aborted; index += 1) {
     await new Promise((resolve) => setTimeout(resolve, index === 0 ? 2500 : 7000));
+    if (controller.signal.aborted) break;
+
     const data = await request(`/api/videos/${encodeURIComponent(taskId)}`, { method: "GET" });
-    lastInfo = renderVideoResult(data, { polling: true, pollIndex: index + 1, pollAttempts: attempts, prompt });
+    lastInfo = renderVideoResult(data, { polling: true, pollIndex: index + 1, prompt });
 
     const status = String(lastInfo.status || "").toLowerCase();
     if (lastInfo.videoUrl || ["completed", "succeeded", "success", "failed", "error", "cancelled"].includes(status)) {
+      state.videoPollAbort = null;
       return lastInfo;
     }
   }
+
+  if (lastInfo) renderVideoResult(lastInfo.raw || { status: lastInfo.status, task_id: lastInfo.taskId }, { prompt, pollStopped: true });
+  state.videoPollAbort = null;
   return lastInfo;
 }
 
@@ -1171,6 +1183,14 @@ async function generateImage() {
 }
 
 async function generateVideo() {
+  if (state.videoPollAbort) {
+    state.videoPollAbort.abort();
+    setMediaStatus(els.videoHint, "Takip durduruldu. Task ID ile Sonucu Çek kullanabilirsin.");
+    els.generateVideo.disabled = false;
+    els.generateVideo.textContent = els.generateVideo.dataset.label || "Video Task Aç";
+    return;
+  }
+
   const prompt = buildVideoPrompt();
   if (!prompt) return;
 
@@ -1213,12 +1233,14 @@ async function generateVideo() {
     });
     const info = renderVideoResult(data, { prompt });
     if (els.autoPollVideo.checked && info.taskId && !info.videoUrl) {
-      setBusy(els.generateVideo, true, "Takip ediliyor");
-      await pollVideoTask(info.taskId, 45, prompt);
+      els.generateVideo.disabled = false;
+      els.generateVideo.textContent = "Takibi durdur";
+      await pollVideoTask(info.taskId, prompt);
     }
   } catch (error) {
     renderError(els.videoOutput, error);
   } finally {
+    state.videoPollAbort = null;
     setBusy(els.generateVideo, false);
   }
 }
