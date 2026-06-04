@@ -781,12 +781,64 @@ function proxiedMediaUrl(url, fileName, download = false) {
   return `/api/media?${params.toString()}`;
 }
 
-async function copyMedia(url, type, statusElement, options = {}) {
+function setMediaStatus(statusElement, text, duration = 2800) {
+  statusElement.textContent = text;
+  window.setTimeout(() => {
+    statusElement.textContent = "";
+  }, duration);
+}
+
+async function fetchMediaBlob(url, fileName) {
+  const response = await fetch(proxiedMediaUrl(url, fileName));
+  if (!response.ok) throw new Error("Medya alınamadı");
+  return response.blob();
+}
+
+async function imageBlobToPng(blob) {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = objectUrl;
+    await image.decode();
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth || image.width;
+    canvas.height = image.naturalHeight || image.height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error("PNG oluşturulamadı"));
+      }, "image/png");
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function downloadMedia(url, type, fileName, statusElement) {
+  try {
+    const blob = await fetchMediaBlob(url, fileName);
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    setMediaStatus(statusElement, type === "video" ? "Video indiriliyor" : "Resim indiriliyor");
+  } catch {
+    setMediaStatus(statusElement, type === "video" ? "Video indirilemedi" : "Resim indirilemedi");
+  }
+}
+
+async function copyMedia(url, type, fileName, statusElement) {
   const setStatus = (text) => {
-    statusElement.textContent = text;
-    window.setTimeout(() => {
-      statusElement.textContent = "";
-    }, 2600);
+    setMediaStatus(statusElement, text);
   };
 
   if (!navigator.clipboard?.write || !window.ClipboardItem) {
@@ -795,31 +847,24 @@ async function copyMedia(url, type, statusElement, options = {}) {
   }
 
   try {
-    const fileName = fileNameFromUrl(url, type === "video" ? "kripto-kurdu-video.mp4" : "kripto-kurdu-gorsel.png");
-    const response = await fetch(proxiedMediaUrl(url, fileName));
-    if (!response.ok) throw new Error("Medya alınamadı");
-    const blob = await response.blob();
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type || (type === "video" ? "video/mp4" : "image/png")]: blob })]);
-    setStatus(options.successText || (type === "video" ? "Video kopyalandı" : "Resim kopyalandı"));
+    const blob = await fetchMediaBlob(url, fileName);
+    if (type === "image") {
+      const pngBlob = await imageBlobToPng(blob);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+      setStatus("Resim panoya kopyalandı");
+      return true;
+    }
+
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type || "video/mp4"]: blob })]);
+    setStatus("Video panoya kopyalandı");
     return true;
   } catch {
-    setStatus(type === "video" ? "Tarayıcı video dosyasını panoya alamadı" : "Resim kopyalanamadı");
+    setStatus(type === "video" ? "Video kopyalanamadı" : "Resim kopyalanamadı");
     return false;
   }
 }
 
-async function prepareXShare(url, type, prompt, statusElement) {
-  const copied = await copyMedia(url, type, statusElement, {
-    successText: type === "video" ? "Video hazır. X'te Ctrl+V yap." : "Resim hazır. X'te Ctrl+V yap."
-  });
-  const text = prompt ? `Kripto Kurdu AI ile üretildi: ${prompt}` : "Kripto Kurdu AI ile üretildi";
-  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
-  if (!copied) {
-    statusElement.textContent = "X medya ekini URL ile alamaz; indirip elle yükleyebilirsin.";
-  }
-}
-
-function createMediaActions({ url, type, prompt = "", index = 0 }) {
+function createMediaActions({ url, type, index = 0 }) {
   const actions = document.createElement("div");
   actions.className = "media-actions";
 
@@ -831,27 +876,22 @@ function createMediaActions({ url, type, prompt = "", index = 0 }) {
   open.rel = "noopener noreferrer";
   open.textContent = "Aç";
 
-  const download = document.createElement("a");
-  download.href = proxiedMediaUrl(url, fileName, true);
-  download.download = fileName;
+  const download = document.createElement("button");
+  download.type = "button";
   download.textContent = type === "video" ? "Videoyu indir" : "Resmi indir";
 
   const copy = document.createElement("button");
   copy.type = "button";
   copy.textContent = type === "video" ? "Video kopyala" : "Resmi kopyala";
 
-  const share = document.createElement("button");
-  share.type = "button";
-  share.textContent = "X için hazırla";
-
   const status = document.createElement("span");
   status.className = "media-action-status";
   status.setAttribute("aria-live", "polite");
 
-  copy.addEventListener("click", () => copyMedia(url, type, status));
-  share.addEventListener("click", () => prepareXShare(url, type, prompt, status));
+  download.addEventListener("click", () => downloadMedia(url, type, fileName, status));
+  copy.addEventListener("click", () => copyMedia(url, type, fileName, status));
 
-  actions.append(open, download, copy, share, status);
+  actions.append(open, download, copy, status);
   return actions;
 }
 
@@ -876,7 +916,7 @@ function renderImageResult(data, finalPrompt) {
     img.src = url;
     img.alt = "Üretilen görsel";
     els.imageOutput.append(img);
-    els.imageOutput.append(createMediaActions({ url, type: "image", prompt: finalPrompt, index }));
+    els.imageOutput.append(createMediaActions({ url, type: "image", index }));
   });
   renderJson(els.imageOutput, data, "Yanıt detayları");
 }
@@ -961,7 +1001,7 @@ function renderVideoResult(data, options = {}) {
     video.controls = true;
     video.autoplay = false;
     els.videoOutput.append(video);
-    els.videoOutput.append(createMediaActions({ url: info.videoUrl, type: "video", prompt: options.prompt }));
+    els.videoOutput.append(createMediaActions({ url: info.videoUrl, type: "video" }));
   }
   renderJson(els.videoOutput, data, "Yanıt detayları");
   return info;
